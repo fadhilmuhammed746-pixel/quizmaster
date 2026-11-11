@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { Capacitor } from '@capacitor/core'
+import { downloadCertificate, type CertificateData } from './certificate'
+import signatureImage from './assets/elegant-shaheem-signature.png'
 import './App.css'
 
 type Role = 'student' | 'admin' | 'master'
 type AuthTab = Role | 'register' | 'forgot'
-type View = 'dashboard' | 'quiz' | 'play' | 'leaderboard' | 'shop' | 'badges' | 'analytics' | 'id' | 'students' | 'questions'
+type View = 'dashboard' | 'quiz' | 'play' | 'leaderboard' | 'shop' | 'badges' | 'analytics' | 'id' | 'certificate' | 'students' | 'questions'
 type Theme = 'coral' | 'blue' | 'green' | 'purple' | 'orange' | 'pink'
 
 type User = {
@@ -85,6 +88,7 @@ const navByRole: Record<Role, { id: View; label: string; icon: string }[]> = {
     { id: 'badges', label: 'Badges', icon: '🏅' },
     { id: 'analytics', label: 'Analytics', icon: '📊' },
     { id: 'id', label: 'My ID', icon: '🪪' },
+    { id: 'certificate', label: 'Certificate', icon: '📜' },
   ],
   admin: [
     { id: 'students', label: 'Students', icon: '👥' },
@@ -174,6 +178,21 @@ function shuffle<T>(values: T[]): T[] {
 
 function Icon({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <span aria-hidden="true" className={`emoji-icon ${className}`}>{children}</span>
+}
+
+function AppDownloadButton({ compact = false }: { compact?: boolean }) {
+  if (Capacitor.isNativePlatform()) return null
+
+  return (
+    <a
+      className={compact ? 'side-link app-download-side-link' : 'btn blue full-width app-download-link'}
+      href={`${import.meta.env.BASE_URL}downloads/quizverse.apk`}
+      download="QuizVerse.apk"
+      aria-label="Download QuizVerse Android app"
+    >
+      <Icon>📲</Icon>{compact ? 'Download app' : 'Download Android app (.APK)'}
+    </a>
+  )
 }
 
 function Avatar({ user, size = 48, className = '' }: { user: Pick<User, 'avatar' | 'frame' | 'photo'>; size?: number; className?: string }) {
@@ -540,6 +559,7 @@ function App() {
             </form>
           )}
           <p className="prototype-note">Frontend demo only · do not use real or sensitive data</p>
+          <AppDownloadButton />
         </div>
         {notice && <Toast message={notice} onDismiss={() => setNotice('')} />}
       </div>
@@ -556,6 +576,40 @@ function App() {
   const globalRank = leaderboard.findIndex((entry) => entry.user.username === activeUser.username) + 1
   const level = Math.floor(activeUser.xp / XP_PER_LEVEL) + 1
   const isDark = darkMode
+  const certificateData: CertificateData = {
+    name: activeUser.name,
+    username: activeUser.username,
+    studentId: activeUser.id,
+    email: activeUser.email,
+    mobile: activeUser.mobile,
+    school: activeUser.school,
+    className: activeUser.className,
+    roll: activeUser.roll,
+    gender: activeUser.gender,
+    dateOfBirth: activeUser.dob,
+    photo: activeUser.photo,
+    quizzesPlayed: studentHistory.length,
+    totalScore: studentHistory.reduce((sum, record) => sum + record.score, 0),
+    totalQuestions: studentHistory.reduce((sum, record) => sum + record.total, 0),
+    accuracy,
+    coins: activeUser.coins,
+    xp: activeUser.xp,
+    level,
+    rank: globalRank,
+    badges: [...earnedBadges(activeUser, studentHistory, globalRank)],
+    subjects: [...new Set(studentHistory.map((record) => record.subject))],
+    issuedOn: formatDate(timestamp(), { year: 'numeric', month: 'long', day: 'numeric' }),
+  }
+
+  async function handleDownloadCertificate() {
+    try {
+      await downloadCertificate(certificateData)
+      setNotice(Capacitor.isNativePlatform() ? 'Certificate ready to save or share.' : 'Your certificate PDF has been downloaded.')
+    } catch (error) {
+      console.error('Could not generate the QuizVerse certificate.', error)
+      setNotice(error instanceof Error ? `Certificate download failed: ${error.message}` : 'Certificate download failed.')
+    }
+  }
 
   function renderMainView(): ReactNode {
     switch (view) {
@@ -590,6 +644,8 @@ function App() {
           : <AdminAnalytics database={activeDatabase} />
       case 'id':
         return <StudentId user={activeUser} level={level} />
+      case 'certificate':
+        return <StudentCertificate data={certificateData} onDownload={() => void handleDownloadCertificate()} />
       case 'students':
         return <StudentManagement users={filteredStudents} allStudents={activeDatabase.users.filter((user) => user.role === 'student')} history={activeDatabase.history} search={studentSearch} classFilter={classFilter} onSearch={setStudentSearch} onClassFilter={setClassFilter} onAddStudent={() => setDialog('student')} onAddAdmin={() => setDialog('admin')} onRemoveAll={() => setDialog('remove-all')} onExport={downloadCsv} onAnnouncement={() => setDialog('announcement')} onCoins={updateCoins} onToggle={(user) => updateUser(user.username, { enabled: !user.enabled })} onResetPassword={(username) => void resetPassword(username)} onRemove={removeStudent} onProfile={setProfileStudent} />
       case 'questions':
@@ -611,6 +667,7 @@ function App() {
         </Card>
         <div className="side-tools">
           <button type="button" className="side-link" onClick={() => setDarkMode((previous) => !previous)}><Icon>{darkMode ? '☀️' : '🌓'}</Icon>{darkMode ? 'Light mode' : 'Dark mode'}</button>
+          <AppDownloadButton compact />
           <button type="button" className="side-link" onClick={logout}><Icon>🚪</Icon>Log out</button>
         </div>
         <button type="button" className="signed-in-user" onClick={() => activeUser.role === 'student' ? navigate('id') : setNotice(`Signed in as ${activeUser.name} · ${activeUser.role}`)}>
@@ -630,7 +687,7 @@ function App() {
 
 function pageTitle(view: View, role: Role): string {
   if (view === 'dashboard') return role === 'student' ? 'Dashboard' : 'Overview'
-  return ({ quiz: 'Play Quiz', play: 'Quiz time', leaderboard: 'Leaderboard', shop: 'Rewards shop', badges: 'My badges', analytics: role === 'student' ? 'My analytics' : 'Admin analytics', id: 'Student ID', students: 'Students', questions: 'Question bank' })[view]
+  return ({ quiz: 'Play Quiz', play: 'Quiz time', leaderboard: 'Leaderboard', shop: 'Rewards shop', badges: 'My badges', analytics: role === 'student' ? 'My analytics' : 'Admin analytics', id: 'Student ID', certificate: 'Certificate', students: 'Students', questions: 'Question bank' })[view]
 }
 
 function PageHeading({ eyebrow, title, description, children }: { eyebrow: string; title: ReactNode; description?: string; children?: ReactNode }) {
@@ -653,6 +710,7 @@ function StudentDashboard({ user, history, announcements, leaders, rank, accurac
         <Card className="tilt"><div className="card-title-row"><h2>🏆 Leaderboard</h2><button className="text-link" type="button" onClick={() => onNavigate('leaderboard')}>See all →</button></div>{leaders.map((leader, index) => <p className="list-line" key={leader.id}><span>{index + 1}. @{leader.username}</span><b>{leader.xp.toLocaleString()} XP</b></p>)}</Card>
         <Card className="tilt dashboard-cta"><div><span className="eyebrow">READY, SET, LEARN!</span><h2>Your next big win starts with one question.</h2><button type="button" className="btn" onClick={() => onNavigate('quiz')}>Play a quiz <span>→</span></button></div><div className="cta-mascot" aria-hidden="true">🧑🏻‍🎓</div></Card>
         <Card className="tilt"><h2>📈 Your progress</h2><div className="mini-metric"><strong>{accuracy}%</strong><span className="muted">accuracy across your quizzes</span></div><div className="progress-track"><i style={{ width: `${accuracy}%` }} /></div><button className="text-link" type="button" onClick={() => onNavigate('analytics')}>View my analytics →</button></Card>
+        <Card className="tilt"><h2>📜 Your achievement certificate</h2><p className="muted">Download a personalized certificate with your quiz history, coins, XP, level, and badges.</p><button type="button" className="btn blue" onClick={() => onNavigate('certificate')}>View certificate →</button></Card>
       </div>
     </>
   )
@@ -817,6 +875,55 @@ function StudentId({ user, level }: { user: User; level: number }) {
   return <>
     <PageHeading eyebrow="YOUR PERSONAL LEARNER CARD" title="🪪 Student ID" description="Show off your progress and your place in the QuizVerse." />
     <Card className="id-card tilt"><div className="id-card-top"><span className="brand-logo">QUIZVERSE</span><span className="pill">STUDENT</span></div><div className="id-card-main"><Avatar user={user} size={104} /><div className="id-identity"><strong style={{ color: user.nameColor ? ['#1c2b2d', '#e04848', '#2b8bff', '#2bb673', '#b66dff', '#e8a900'][user.nameColor] : undefined }}>@{user.username}</strong><h2>{user.name}</h2><p>{user.school} · {user.className}</p><span className="pill">{user.id}</span></div>{makeQr(user.id)}</div><div className="id-card-stats"><span>⚡ {user.xp} XP</span><span>⭐ Level {level}</span><span>🪙 {user.coins} coins</span></div></Card>
+  </>
+}
+
+function StudentCertificate({ data, onDownload }: { data: CertificateData; onDownload: () => void }) {
+  const fields = [
+    ['Student ID', data.studentId], ['Username', `@${data.username}`], ['Email', data.email],
+    ['Mobile', data.mobile], ['School / College', data.school], ['Class', data.className],
+    ['Roll number', data.roll], ['Gender', data.gender], ['Date of birth', data.dateOfBirth || '—'],
+  ]
+  const stats = [
+    ['Quizzes played', data.quizzesPlayed.toLocaleString()],
+    ['Total score', data.totalQuestions ? `${data.totalScore} / ${data.totalQuestions}` : String(data.totalScore)],
+    ['Accuracy', `${data.accuracy}%`],
+    ['Global rank', data.rank ? `#${data.rank}` : 'Unranked'],
+    ['Coins', data.coins.toLocaleString()],
+    ['XP', data.xp.toLocaleString()],
+    ['Level', String(data.level)],
+    ['Badges', String(data.badges.length)],
+  ]
+
+  return <>
+    <PageHeading eyebrow="YOUR QUIZVERSE MILESTONE" title="📜 Achievement certificate" description="A personalized record of your profile, quiz activity, and rewards.">
+      <button type="button" className="btn blue" onClick={onDownload}>⬇ Download certificate PDF</button>
+    </PageHeading>
+    <Card className="certificate-preview">
+      <div className="certificate-frame">
+        <div className="certificate-brand">✦ QUIZVERSE ✦<small>LEARN · PLAY · LEVEL UP</small></div>
+        <h2>CERTIFICATE OF ACHIEVEMENT</h2>
+        <p className="certificate-presented">This certificate is proudly presented to</p>
+        <div className="certificate-student">
+          {data.photo ? <img src={data.photo} alt="" /> : <span aria-hidden="true">🎓</span>}
+          <div><strong>{data.name}</strong><small>@{data.username} · {data.school} · {data.className}</small></div>
+        </div>
+        <p className="certificate-description">For curiosity, effort, and progress in the QuizVerse learning community.</p>
+        <h3>Student profile</h3>
+        <dl className="certificate-fields">{fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || '—'}</dd></div>)}</dl>
+        <h3>Quiz &amp; reward record</h3>
+        <dl className="certificate-stats">{stats.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+        <p className="certificate-extra"><b>Subjects:</b> {data.subjects.length ? data.subjects.join(', ') : 'No quizzes completed yet'}</p>
+        <p className="certificate-extra"><b>Badges:</b> {data.badges.length ? data.badges.join(', ') : 'No badges earned yet'}</p>
+        <div className="certificate-footer">
+          <div className="certificate-signature"><img src={signatureImage} alt="Shaheem's signature" /><span>QuizVerse President</span></div>
+          <div className="certificate-seal" aria-label="QuizVerse achievement seal"><span>✦</span><b>QUIZVERSE</b><small>ACHIEVEMENT</small></div>
+          <span className="certificate-issued">Issued {data.issuedOn}</span>
+        </div>
+        <p className="certificate-disclaimer">QuizVerse demo achievement record · Not an academic or government credential</p>
+      </div>
+    </Card>
+    <p className="certificate-privacy muted">Your PDF includes the profile details shown above. Only download or share it with people you trust.</p>
   </>
 }
 

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">QuizVerse</string>
+    <string name="title_activity_main">QuizVerse</string>
+    <string name="package_name">com.quizverse.app</string>
+    <string name="custom_url_scheme">com.quizverse.app</string>
+</resources>

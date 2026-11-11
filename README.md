@@ -13,13 +13,26 @@ Create a production bundle with `npm run build`. Run `npm run lint` for the conf
 
 Students can register a profile with a unique username. Profiles, rewards, quiz history, and preferences are stored in browser local storage.
 
+## Android app
+
+The sign-in screen and sidebar include a direct Android APK download. To rebuild it, install Java 21 and the Android SDK (including Android API 36 and build tools 36), then run:
+
+```sh
+npm install
+npm run android:apk
+```
+
+The debug APK is generated at `android/app/build/outputs/apk/debug/app-debug.apk` and copied to `public/downloads/quizverse.apk`. Run `npm run build` to put it in `dist/downloads/quizverse.apk` for web hosting. This debug APK is suitable for direct testing and sideloading, not Play Store distribution; Android may ask users to allow app installs from their browser or file manager.
+
 ## Included prototype features
 
 - Student registration, sign-in, password reset, generated student IDs, and optional profile pictures
 - Student dashboard, daily rewards, randomized timed quizzes, bookmarks, negative marking, results, and answer review
 - Global, school, class, friends, and date-range leaderboards; badges, a coin shop, analytics, a printable report, and a QR-style student card
+- Student achievement certificate preview and downloadable PDF with profile details, quiz attempts, score, accuracy, rank, coins, XP, level, subjects, badges, and a signature
 - Separate Admin and Quiz Master navigation, student search/filter/add/remove/disable, coin awards, password reset, CSV export, announcements, question management, and aggregate analytics
 - Responsive layout, dark/light theme toggle, and animated character artwork
+- Android install via a downloadable Capacitor APK
 
 ## Scope and security
 
