@@ -1,6 +1,6 @@
-# Quizly
+# QuizVerse
 
-Quizly is a responsive, game-inspired Quiz Master frontend prototype built with React, TypeScript, and Vite. Its dashboard is designed to work on desktop, tablet, and mobile screens.
+QuizVerse is a responsive, game-inspired Quiz Master frontend prototype built with React, TypeScript, and Vite. Its visual design follows the supplied QuizVerse reference: warm paper colors, bold outlined cards, playful characters, role-specific sign-in, and animated 3D-style cube artwork.
 
 ## Run locally
 
@@ -11,16 +11,18 @@ npm run dev
 
 Create a production bundle with `npm run build`. Run `npm run lint` for the configured Oxlint checks.
 
-## Demo walkthrough
+Students can register a profile with a unique username. Profiles, rewards, quiz history, and preferences are stored in browser local storage.
 
-- Use **Demo view** at the bottom of the sidebar to switch between the Admin and Student views.
-- In the Admin view, open **All students** to search and filter the sample roster, add students, prepare a separate admin invite, or remove a student.
-- New student usernames are checked for uniqueness in the current in-memory roster.
-- Use the moon/sun button in the header to switch the interface theme.
-- Overview cards, leaderboard, quiz entry points, reminders, and the original CSS mascot artwork demonstrate the intended product experience.
+## Included prototype features
 
-## Scope and next steps
+- Student registration, sign-in, password reset, generated student IDs, and optional profile pictures
+- Student dashboard, daily rewards, randomized timed quizzes, bookmarks, negative marking, results, and answer review
+- Global, school, class, friends, and date-range leaderboards; badges, a coin shop, analytics, a printable report, and a QR-style student card
+- Separate Admin and Quiz Master navigation, student search/filter/add/remove/disable, coin awards, password reset, CSV export, announcements, question management, and aggregate analytics
+- Responsive layout, dark/light theme toggle, and animated character artwork
 
-This is a UI prototype, not a production authentication or student-record system. Demo role switching is not authorization. Roster changes are held in browser memory and reset on reload. Admin invitations only demonstrate the interface; passwords, profile uploads, email verification, QR IDs, persistence, quizzes, exports, analytics, rewards, and notifications are not connected to a backend.
+## Scope and security
 
-Before using real student data, connect a secure API and database, enforce roles server-side, hash passwords with a suitable password-hashing algorithm, validate and rate-limit authentication flows, use private storage for profile photos, and add privacy/retention policies. The friendly 3D-style mascots are original CSS illustrations; no external model or image assets are required.
+This is a **frontend-only demonstration**, not production authentication or storage. The sign-in screen intentionally does not display account credentials. Passwords are SHA-256 hashed in local storage, but a client-side hash is not a production authentication system: there is no server-side authorization, password-hardening, email verification, or recovery. Roles and all student data can be changed by the browser user. The password reset flow is a local demo, not an email-based recovery flow. Never enter real student records or sensitive information.
+
+Before using real users or data, connect a secure backend and database, enforce roles server-side, use a password-hashing algorithm designed for passwords, implement verified account recovery and access controls, secure image storage, and establish privacy/retention policies. The QR-style graphic is decorative and not a standards-compliant ID QR code.
